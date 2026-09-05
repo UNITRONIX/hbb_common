@@ -489,11 +489,12 @@ pub struct VersionCheckResponse {
     pub url: String,
 }
 
-pub const VER_TYPE_RUSTDESK_CLIENT: &str = "rustdesk-client";
-pub const VER_TYPE_RUSTDESK_SERVER: &str = "rustdesk-server";
+pub const VER_TYPE_RUSTDESK_CLIENT: &str = "betterdesk-client";
+pub const VER_TYPE_RUSTDESK_SERVER: &str = "betterdesk-server";
 
 pub fn version_check_request(typ: String) -> (VersionCheckRequest, String) {
-    const URL: &str = "https://api.rustdesk.com/version/latest";
+    // Official BetterDesk builds do not query rustdesk.com. Prefer `/api/software` on your API.
+    const URL: &str = "";
 
     use sysinfo::System;
     let system = System::new();

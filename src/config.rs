@@ -69,7 +69,7 @@ lazy_static::lazy_static! {
     static ref ONLINE: Mutex<HashMap<String, i64>> = Default::default();
     pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new("".to_owned());
     pub static ref EXE_RENDEZVOUS_SERVER: RwLock<String> = Default::default();
-    pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());
+    pub static ref APP_NAME: RwLock<String> = RwLock::new("BetterDesk Client".to_owned());
     static ref KEY_PAIR: Mutex<Option<KeyPair>> = Default::default();
     static ref USER_DEFAULT_CONFIG: RwLock<(UserDefaultConfig, Instant)> = RwLock::new((UserDefaultConfig::load(), Instant::now()));
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
@@ -97,8 +97,23 @@ lazy_static::lazy_static! {
     pub static ref APP_HOME_DIR: RwLock<String> = Default::default();
 }
 
-pub const LINK_DOCS_HOME: &str = "https://rustdesk.com/docs/en/";
-pub const LINK_DOCS_X11_REQUIRED: &str = "https://rustdesk.com/docs/en/manual/linux/#x11-required";
+pub const LINK_DOCS_HOME: &str = "https://github.com/UNITRONIX/BetterDesk";
+pub const LINK_DOCS_X11_REQUIRED: &str = "https://github.com/UNITRONIX/BetterDesk";
+
+/// Official desktop client product id reported to BetterDesk API (sysinfo / login).
+pub const BETTERDESK_CLIENT_PRODUCT: &str = "betterdesk-desktop";
+/// On-disk / process executable stem (Windows: betterdesk.exe). Display name is `APP_NAME`.
+pub const EXE_NAME: &str = "betterdesk";
+/// URI scheme without spaces (APP_NAME may contain spaces).
+pub const URI_SCHEME: &str = "betterdesk";
+
+/// Upstream project this client is forked from (AGPL-3.0 attribution).
+pub const UPSTREAM_PROJECT_NAME: &str = "RustDesk";
+pub const UPSTREAM_REPO_URL: &str = "https://github.com/rustdesk/rustdesk";
+/// Source code for this BetterDesk client build (AGPL corresponding source).
+pub const FORK_REPO_URL: &str = "https://github.com/UNITRONIX/BetterDesk-Client";
+pub const LICENSE_SPDX: &str = "AGPL-3.0-only";
+pub const LICENSE_NAME: &str = "GNU Affero General Public License v3.0";
 
 lazy_static::lazy_static! {
     pub static ref HELPER_URL: HashMap<&'static str, &'static str> = HashMap::from([
@@ -114,8 +129,11 @@ const CHARS: &[char] = &[
     'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
 
-pub const RENDEZVOUS_SERVERS: &[&str] = &["rs-ny.rustdesk.com"];
-pub const RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";
+/// Empty: BetterDesk never falls back to public rustdesk.com rendezvous.
+pub const RENDEZVOUS_SERVERS: &[&str] = &[];
+/// Unused as a default peer/rendezvous key; kept only for legacy decode helpers.
+/// Configure `key` via Network settings, deploy string, or `custom.txt`.
+pub const RS_PUB_KEY: &str = "";
 
 pub const RENDEZVOUS_PORT: i32 = 21116;
 pub const RELAY_PORT: i32 = 21117;
@@ -137,7 +155,8 @@ pub fn is_service_ipc_postfix(postfix: &str) -> bool {
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[inline]
 fn ipc_parent_dir_for_uid(uid: u32, postfix: &str) -> String {
-    let app_name = APP_NAME.read().unwrap().clone();
+    // Use EXE_NAME (no spaces) so IPC sockets/pipes stay stable when APP_NAME is a display name.
+    let app_name = EXE_NAME;
     if is_service_ipc_postfix(postfix) {
         format!("/tmp/{app_name}-service")
     } else {
@@ -845,9 +864,10 @@ impl Config {
             // \\ServerName\pipe\PipeName
             // where ServerName is either the name of a remote computer or a period, to specify the local computer.
             // https://docs.microsoft.com/en-us/windows/win32/ipc/pipe-names
+            // Use EXE_NAME (no spaces) — APP_NAME may be a multi-word display name.
             format!(
                 "\\\\.\\pipe\\{}\\query{}",
-                *APP_NAME.read().unwrap(),
+                EXE_NAME,
                 postfix
             )
         }
@@ -857,14 +877,14 @@ impl Config {
             use std::os::unix::fs::PermissionsExt;
             #[cfg(target_os = "android")]
             let mut path: PathBuf =
-                format!("{}/{}", *APP_DIR.read().unwrap(), *APP_NAME.read().unwrap()).into();
+                format!("{}/{}", *APP_DIR.read().unwrap(), EXE_NAME).into();
             #[cfg(any(target_os = "linux", target_os = "macos"))]
             let mut path: PathBuf = {
                 let uid = unsafe { libc::geteuid() as u32 };
                 ipc_parent_dir_for_uid(uid, postfix).into()
             };
             #[cfg(not(any(target_os = "android", target_os = "linux", target_os = "macos")))]
-            let mut path: PathBuf = format!("/tmp/{}", *APP_NAME.read().unwrap()).into();
+            let mut path: PathBuf = format!("/tmp/{}", EXE_NAME).into();
             // Android stores IPC sockets under app-controlled directories. Create the IPC parent
             // dir and enforce the expected mode here. On other Unix platforms, `ipc_path()` is
             // intentionally side-effect free (no mkdir/chmod); callers should enforce directory and
@@ -924,7 +944,7 @@ impl Config {
                 .next()
                 .unwrap_or_default();
         }
-        if !rendezvous_server.contains(':') {
+        if !rendezvous_server.is_empty() && !rendezvous_server.contains(':') {
             rendezvous_server = format!("{rendezvous_server}:{RENDEZVOUS_PORT}");
         }
         rendezvous_server
@@ -4013,7 +4033,7 @@ mod tests {
         let path_user = Config::ipc_path_for_uid(USER_UID, "_uinput_keyboard");
         assert_eq!(path_root, path_user);
 
-        let app_name = APP_NAME.read().unwrap().clone();
+        let app_name = EXE_NAME;
         assert!(
             path_root.starts_with(&format!("/tmp/{app_name}-service/")),
             "unexpected uinput ipc path: {}",
