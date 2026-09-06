@@ -2948,6 +2948,11 @@ pub mod keys {
     pub const OPTION_WINDOWS_SERVICE_VIDEO_SAVE_DIRECTORY: &str =
         "windows-service-video-save-directory";
     pub const OPTION_VIDEO_SAVE_DIRECTORY: &str = "video-save-directory";
+    pub const OPTION_BRANDING_COMPANY_NAME: &str = "branding-company-name";
+    pub const OPTION_BRANDING_PHONE: &str = "branding-phone";
+    pub const OPTION_BRANDING_EMAIL: &str = "branding-email";
+    pub const OPTION_BRANDING_WEBSITE: &str = "branding-website";
+    pub const OPTION_BRANDING_LOGO: &str = "branding-logo";
     pub const OPTION_ENABLE_ABR: &str = "enable-abr";
     pub const OPTION_ALLOW_REMOVE_WALLPAPER: &str = "allow-remove-wallpaper";
     pub const OPTION_ALLOW_ALWAYS_SOFTWARE_RENDER: &str = "allow-always-software-render";
@@ -3145,6 +3150,11 @@ pub mod keys {
         OPTION_ALLOW_AUTO_RECORD_OUTGOING,
         OPTION_HIDE_RECORDING_BUTTON,
         OPTION_VIDEO_SAVE_DIRECTORY,
+        OPTION_BRANDING_COMPANY_NAME,
+        OPTION_BRANDING_PHONE,
+        OPTION_BRANDING_EMAIL,
+        OPTION_BRANDING_WEBSITE,
+        OPTION_BRANDING_LOGO,
         OPTION_ENABLE_UDP_PUNCH,
         OPTION_ENABLE_IPV6_PUNCH,
         OPTION_TOUCH_MODE,
