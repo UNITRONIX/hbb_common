@@ -2953,6 +2953,11 @@ pub mod keys {
     pub const OPTION_BRANDING_EMAIL: &str = "branding-email";
     pub const OPTION_BRANDING_WEBSITE: &str = "branding-website";
     pub const OPTION_BRANDING_LOGO: &str = "branding-logo";
+    pub const OPTION_BRANDING_SOURCE: &str = "branding-source";
+    pub const OPTION_BRANDING_REVISION: &str = "branding-revision";
+    pub const OPTION_BRANDING_ACCENT_COLOR: &str = "branding-accent-color";
+    pub const OPTION_BRANDING_LOGO_PATH: &str = "branding-logo-path";
+    pub const OPTION_BRANDING_SYNCED_API: &str = "branding-synced-api";
     pub const OPTION_ENABLE_ABR: &str = "enable-abr";
     pub const OPTION_ALLOW_REMOVE_WALLPAPER: &str = "allow-remove-wallpaper";
     pub const OPTION_ALLOW_ALWAYS_SOFTWARE_RENDER: &str = "allow-always-software-render";
@@ -3155,6 +3160,11 @@ pub mod keys {
         OPTION_BRANDING_EMAIL,
         OPTION_BRANDING_WEBSITE,
         OPTION_BRANDING_LOGO,
+        OPTION_BRANDING_SOURCE,
+        OPTION_BRANDING_REVISION,
+        OPTION_BRANDING_ACCENT_COLOR,
+        OPTION_BRANDING_LOGO_PATH,
+        OPTION_BRANDING_SYNCED_API,
         OPTION_ENABLE_UDP_PUNCH,
         OPTION_ENABLE_IPV6_PUNCH,
         OPTION_TOUCH_MODE,
