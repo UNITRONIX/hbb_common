@@ -472,7 +472,12 @@ pub struct TransferSerde {
 
 #[inline]
 pub fn get_online_state() -> i64 {
-    *ONLINE.lock().unwrap().values().max().unwrap_or(&0)
+    let state = *ONLINE.lock().unwrap().values().max().unwrap_or(&0);
+    if state > 0 && !Config::get_key_confirmed() {
+        -1
+    } else {
+        state
+    }
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
