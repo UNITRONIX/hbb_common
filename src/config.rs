@@ -106,6 +106,8 @@ pub const BETTERDESK_CLIENT_PRODUCT: &str = "betterdesk-desktop";
 pub const EXE_NAME: &str = "betterdesk";
 /// URI scheme without spaces (APP_NAME may contain spaces).
 pub const URI_SCHEME: &str = "betterdesk";
+/// Previous client scheme. Still accepted so existing `rustdesk://` links keep working.
+pub const LEGACY_URI_SCHEME: &str = "rustdesk";
 
 /// Upstream project this client is forked from (AGPL-3.0 attribution).
 pub const UPSTREAM_PROJECT_NAME: &str = "RustDesk";
@@ -2964,6 +2966,7 @@ pub mod keys {
     pub const OPTION_BRANDING_SOURCE: &str = "branding-source";
     pub const OPTION_BRANDING_REVISION: &str = "branding-revision";
     pub const OPTION_BRANDING_ACCENT_COLOR: &str = "branding-accent-color";
+    pub const OPTION_BRANDING_BACKGROUND_COLOR: &str = "branding-background-color";
     pub const OPTION_BRANDING_LOGO_PATH: &str = "branding-logo-path";
     pub const OPTION_BRANDING_SYNCED_API: &str = "branding-synced-api";
     pub const OPTION_ENABLE_ABR: &str = "enable-abr";
