@@ -2164,6 +2164,16 @@ pub struct LocalConfig {
     // Various data for flutter ui
     #[serde(default, deserialize_with = "deserialize_hashmap_string_string")]
     ui_flutter: HashMap<String, String>,
+    #[serde(default, deserialize_with = "deserialize_string")]
+    betterdesk_connection_mode: String,
+    #[serde(default)]
+    betterdesk_connection_mode_revision: u64,
+    #[serde(default, deserialize_with = "deserialize_string")]
+    betterdesk_connection_mode_command_id: String,
+    #[serde(default, deserialize_with = "deserialize_string")]
+    betterdesk_connection_mode_status: String,
+    #[serde(default, deserialize_with = "deserialize_string")]
+    betterdesk_connection_mode_error: String,
 }
 
 impl LocalConfig {
@@ -2298,6 +2308,61 @@ impl LocalConfig {
             }
             config.store();
         }
+    }
+
+    pub fn get_connection_mode() -> String {
+        LOCAL_CONFIG
+            .read()
+            .unwrap()
+            .betterdesk_connection_mode
+            .clone()
+    }
+
+    pub fn get_connection_mode_revision() -> u64 {
+        LOCAL_CONFIG
+            .read()
+            .unwrap()
+            .betterdesk_connection_mode_revision
+    }
+
+    pub fn get_connection_mode_command_id() -> String {
+        LOCAL_CONFIG
+            .read()
+            .unwrap()
+            .betterdesk_connection_mode_command_id
+            .clone()
+    }
+
+    pub fn get_connection_mode_status() -> String {
+        LOCAL_CONFIG
+            .read()
+            .unwrap()
+            .betterdesk_connection_mode_status
+            .clone()
+    }
+
+    pub fn get_connection_mode_error() -> String {
+        LOCAL_CONFIG
+            .read()
+            .unwrap()
+            .betterdesk_connection_mode_error
+            .clone()
+    }
+
+    pub fn set_connection_mode_policy(
+        mode: &str,
+        revision: u64,
+        command_id: &str,
+        status: &str,
+        error: &str,
+    ) {
+        let mut config = LOCAL_CONFIG.write().unwrap();
+        config.betterdesk_connection_mode = mode.to_owned();
+        config.betterdesk_connection_mode_revision = revision;
+        config.betterdesk_connection_mode_command_id = command_id.to_owned();
+        config.betterdesk_connection_mode_status = status.to_owned();
+        config.betterdesk_connection_mode_error = error.to_owned();
+        config.store();
     }
 }
 
@@ -2798,12 +2863,38 @@ fn is_option_can_save(
 }
 
 #[inline]
-pub fn is_incoming_only() -> bool {
+pub fn is_permanent_incoming_only() -> bool {
     HARD_SETTINGS
         .read()
         .unwrap()
         .get("conn-type")
         .map_or(false, |x| x == ("incoming"))
+}
+
+#[inline]
+pub fn is_remote_connection_mode_controlled() -> bool {
+    !is_permanent_incoming_only()
+        && HARD_SETTINGS
+            .read()
+            .unwrap()
+            .get("remote-connection-mode")
+            .map_or(false, |x| x == "Y")
+}
+
+#[inline]
+pub fn is_incoming_only() -> bool {
+    is_permanent_incoming_only()
+        || (is_remote_connection_mode_controlled()
+            && LocalConfig::get_connection_mode() == "incoming-only")
+}
+
+#[inline]
+pub fn connection_mode() -> &'static str {
+    if is_incoming_only() {
+        "incoming-only"
+    } else {
+        "normal"
+    }
 }
 
 #[inline]
@@ -3402,6 +3493,28 @@ mod tests {
         let _guard = CONFIG_STATE_TEST_LOCK.lock().unwrap();
         let _state_guard = ConfigStateTestGuard::new(config, hard_settings);
         test()
+    }
+
+    #[test]
+    fn remote_connection_mode_requires_explicit_capability() {
+        with_config_and_hard_settings(Config::default(), HashMap::new(), || {
+            assert!(!is_remote_connection_mode_controlled());
+            assert!(!is_incoming_only());
+        });
+
+        let mut hard_settings =
+            HashMap::from([("remote-connection-mode".to_owned(), "Y".to_owned())]);
+        with_config_and_hard_settings(Config::default(), hard_settings.clone(), || {
+            assert!(is_remote_connection_mode_controlled());
+            assert!(!is_incoming_only());
+        });
+
+        hard_settings.insert("conn-type".to_owned(), "incoming".to_owned());
+        with_config_and_hard_settings(Config::default(), hard_settings, || {
+            assert!(!is_remote_connection_mode_controlled());
+            assert!(is_permanent_incoming_only());
+            assert!(is_incoming_only());
+        });
     }
 
     #[test]
