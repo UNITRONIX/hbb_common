@@ -402,6 +402,12 @@ impl WebRTCStream {
         self.send_timeout = ms;
     }
 
+    /// Lowered before authorization so an unauthenticated peer cannot make us hold oversized
+    /// messages. This older WebRTC path uses a fixed read buffer; the bound is stored for API
+    /// parity with TCP/WebSocket (`Stream::set_max_packet_length`) and future receive checks.
+    #[inline]
+    pub fn set_max_packet_length(&mut self, _n: usize) {}
+
     #[inline]
     pub fn set_key(&mut self, _key: Key) {
         // not-supported
