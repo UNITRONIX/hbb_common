@@ -2159,11 +2159,12 @@ pub struct LocalConfig {
     size: Size,
     #[serde(default, deserialize_with = "deserialize_vec_string")]
     pub fav: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_hashmap_string_string")]
-    options: HashMap<String, String>,
-    // Various data for flutter ui
-    #[serde(default, deserialize_with = "deserialize_hashmap_string_string")]
-    ui_flutter: HashMap<String, String>,
+    // BetterDesk incoming-only connection policy. Scalars must come before the
+    // maps below: `confy` serialises through `toml` 0.5, which emits maps as
+    // tables and rejects any primitive value that follows one. With a scalar
+    // after a table every save failed with
+    //   "Failed to serialize configuration data into TOML"
+    // and the `_local` config silently stopped persisting (issue #497).
     #[serde(default, deserialize_with = "deserialize_string")]
     betterdesk_connection_mode: String,
     #[serde(default)]
@@ -2174,6 +2175,12 @@ pub struct LocalConfig {
     betterdesk_connection_mode_status: String,
     #[serde(default, deserialize_with = "deserialize_string")]
     betterdesk_connection_mode_error: String,
+    // Maps last (see the note above): emitted as TOML tables.
+    #[serde(default, deserialize_with = "deserialize_hashmap_string_string")]
+    options: HashMap<String, String>,
+    // Various data for flutter ui
+    #[serde(default, deserialize_with = "deserialize_hashmap_string_string")]
+    ui_flutter: HashMap<String, String>,
 }
 
 impl LocalConfig {
@@ -3525,6 +3532,99 @@ mod tests {
         let cfg: PeerConfig = Default::default();
         let res = toml::to_string_pretty(&cfg);
         assert!(res.is_ok());
+    }
+
+    /// Issue #497: a populated `LocalConfig` must survive the real save path.
+    ///
+    /// The client persists `_local` through `confy`, which uses `toml` 0.5. That
+    /// writer emits `HashMap` fields as tables and rejects a primitive value that
+    /// follows one, so `Config::store_` logged
+    /// "Failed to serialize configuration data into TOML" on every save and the
+    /// config silently stopped persisting.
+    ///
+    /// `toml::to_string_pretty` cannot catch this: the crate's direct `toml`
+    /// dependency is 0.7, which reorders fields. The test therefore goes through
+    /// `confy` exactly like production does.
+    #[test]
+    fn test_local_config_persists_through_confy() {
+        let dir = std::env::temp_dir().join(format!(
+            "bd-localconfig-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("_local.toml");
+        let _ = std::fs::remove_file(&path);
+
+        let mut cfg = LocalConfig::default();
+        cfg.remote_id = "123456789".to_owned();
+        cfg.kb_layout_type = "map".to_owned();
+        cfg.size = (100, 200, 800, 600);
+        cfg.fav = vec!["111222333".to_owned(), "444555666".to_owned()];
+        cfg.betterdesk_connection_mode = "incoming-only".to_owned();
+        cfg.betterdesk_connection_mode_revision = 7;
+        cfg.betterdesk_connection_mode_command_id = "cmd-42".to_owned();
+        cfg.betterdesk_connection_mode_status = "applied".to_owned();
+        cfg.betterdesk_connection_mode_error = String::new();
+        cfg.options.insert("enable-audio".to_owned(), "Y".to_owned());
+        cfg.options
+            .insert("custom-rendezvous-server".to_owned(), "panel.example".to_owned());
+        cfg.ui_flutter
+            .insert("theme".to_owned(), "dark".to_owned());
+
+        // This is the call `Config::store_::<LocalConfig>` makes.
+        confy::store_path(&path, cfg.clone())
+            .expect("storing a populated LocalConfig must not fail (issue #497)");
+
+        let text = std::fs::read_to_string(&path).expect("config file must exist");
+        let first_table = text.find("\n[").unwrap_or(text.len());
+        let mode_pos = text
+            .find("betterdesk_connection_mode")
+            .expect("connection mode must be written");
+        assert!(
+            mode_pos < first_table,
+            "scalar fields must precede map tables:\n{}",
+            text
+        );
+
+        let parsed: LocalConfig = confy::load_path(&path).expect("stored config must load");
+        assert_eq!(parsed.remote_id, cfg.remote_id);
+        assert_eq!(parsed.fav, cfg.fav);
+        assert_eq!(parsed.size, cfg.size);
+        assert_eq!(
+            parsed.betterdesk_connection_mode,
+            cfg.betterdesk_connection_mode
+        );
+        assert_eq!(
+            parsed.betterdesk_connection_mode_revision,
+            cfg.betterdesk_connection_mode_revision
+        );
+        assert_eq!(
+            parsed.betterdesk_connection_mode_command_id,
+            cfg.betterdesk_connection_mode_command_id
+        );
+        assert_eq!(
+            parsed.betterdesk_connection_mode_status,
+            cfg.betterdesk_connection_mode_status
+        );
+        assert_eq!(parsed.options, cfg.options);
+        assert_eq!(parsed.ui_flutter, cfg.ui_flutter);
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    /// Even an empty `LocalConfig` must produce valid TOML — this is the state
+    /// a fresh install saves on first launch.
+    #[test]
+    fn test_local_config_default_round_trip() {
+        let cfg = LocalConfig::default();
+        let text = toml::to_string_pretty(&cfg).expect("default LocalConfig must serialise");
+        let parsed: LocalConfig = toml::from_str(&text).expect("default LocalConfig must parse");
+        assert_eq!(parsed.remote_id, "");
+        assert_eq!(parsed.betterdesk_connection_mode, "");
+        assert!(parsed.options.is_empty());
+        assert!(parsed.ui_flutter.is_empty());
     }
 
     #[test]
